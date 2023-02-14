@@ -1,0 +1,11 @@
+﻿
+@{
+    ViewData["Title"] = "SaveFiles";
+}
+
+<h1>SaveFiles</h1>
+<form asp-controller="Files" asp-action="SaveFiles" method="post" enctype="multipart/form-data">
+    <input type="file" multiple />
+    <button type="submit">Save</button>
+</form>
+
