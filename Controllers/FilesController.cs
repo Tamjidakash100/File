@@ -9,6 +9,7 @@ using File.Data;
 using File.Models;
 using Microsoft.Net.Http.Headers;
 using System.IO;
+using static System.Net.WebRequestMethods;
 
 namespace File.Controllers
 {
@@ -22,15 +23,13 @@ namespace File.Controllers
             _context = context;
             _hostingEnvironment= hostingEnvironment;
         }
-        public IActionResult Index()
-        {
-            var fileList = _context.files.Include(f=>f.Person).ToList();
-            return View(fileList);
-        }
         public IActionResult FileList(int id)
         {
-            return View();
+
+            var fileList = _context.files.Include(f=>f.Person).Where(c=>c.PersonId==id).ToList();
+            return View(fileList);
         }
+        
 
         public async Task<IActionResult> Details(int? id)
         {
@@ -92,39 +91,77 @@ namespace File.Controllers
 
             await _context.SaveChangesAsync();
 
-            return RedirectToAction(nameof(Index));
+            
+            return RedirectToAction("Index", "Person");
+        }
+        public async Task<IActionResult> Edit(int id)
+        {
+
+            var file = await _context.files.FindAsync(id);
+            
+            if (file == null)
+            {
+                return NotFound();
+            }
+            ViewData["PersonId"] = new SelectList(_context.person, "Id", "Name", file.PersonId);
+            
+            return View(file);
         }
 
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,FileName,PersonId,ContentType")] Files files)
+        public async Task<IActionResult> Edit(int id, IFormFile file,Files files)
         {
-            if (id != files.Id)
+            string folderName = "Files";
+            string webRootPath = _hostingEnvironment.WebRootPath;
+            string newPath = Path.Combine(webRootPath, folderName);
+            if (!Directory.Exists(newPath))
             {
-                return NotFound();
+                Directory.CreateDirectory(newPath);
             }
+            
+                if (file.Length > 0)
+                {
+                    string fileName = Path.GetFileName(file.FileName);
+                    string fullPath = Path.Combine(newPath, fileName);
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(files);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!FilesExists(files.Id))
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+
+                    var fileEntity = _context.files.FirstOrDefault( c => c.Id==id);
+                    
+                    if(fileEntity == null || files.Id!=fileEntity.Id)
                     {
                         return NotFound();
                     }
-                    else
+                    int personId = fileEntity.PersonId;
+                    System.IO.File.Delete(Path.Combine(newPath,fileEntity.FileName));
+                    fileEntity.FileName=fileName;
+                    fileEntity.ContentType= file.ContentType;
+                    try
                     {
-                        throw;
+                        _context.files.Update(fileEntity);
+                        await _context.SaveChangesAsync();
                     }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        if (!FilesExists(id))
+                        {
+                            return NotFound();
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                    System.IO.File.Delete(fileName);
+                    return RedirectToAction("FileList", "Files", new { id = personId });
                 }
-                return RedirectToAction(nameof(Index));
+                
             }
+                
             ViewData["PersonId"] = new SelectList(_context.person, "Id", "Id", files.PersonId);
             return View(files);
         }
@@ -162,6 +199,7 @@ namespace File.Controllers
             string folderName = "Files";
             string webRootPath = _hostingEnvironment.WebRootPath;
             string filePath = Path.Combine(webRootPath, folderName,files.FileName);
+            int personId = files.PersonId;
 
             if (System.IO.File.Exists(filePath))
             {
@@ -174,7 +212,7 @@ namespace File.Controllers
             
 
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("FileList", "Files", new { id = personId});
         }
 
         private bool FilesExists(int id)
