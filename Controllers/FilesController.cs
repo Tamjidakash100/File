@@ -8,25 +8,26 @@ using Microsoft.EntityFrameworkCore;
 using File.Data;
 using File.Models;
 using Microsoft.Net.Http.Headers;
+using System.IO;
 
 namespace File.Controllers
 {
     public class FilesController : Controller
     {
         private readonly FileDbContext _context;
-        private readonly Microsoft.AspNetCore.Hosting.IHostingEnvironment _hostingEnvironment;
+        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _hostingEnvironment;
 
-        public FilesController(FileDbContext context, Microsoft.AspNetCore.Hosting.IHostingEnvironment hostingEnvironment)
+        public FilesController(FileDbContext context, Microsoft.AspNetCore.Hosting.IWebHostEnvironment hostingEnvironment)
         {
             _context = context;
             _hostingEnvironment= hostingEnvironment;
         }
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             var fileList = _context.files.Include(f=>f.Person).ToList();
             return View(fileList);
         }
-        public async Task<IActionResult> FileList(int id)
+        public IActionResult FileList(int id)
         {
             return View();
         }
@@ -148,16 +149,30 @@ namespace File.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+
             if (_context.files == null)
             {
                 return Problem("Entity set 'FileDbContext.files'  is null.");
             }
             var files = await _context.files.FindAsync(id);
+            if(files==null)
+            {
+                return NotFound();
+            }
+            string folderName = "Files";
+            string webRootPath = _hostingEnvironment.WebRootPath;
+            string filePath = Path.Combine(webRootPath, folderName,files.FileName);
+
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
             if (files != null)
             {
                 _context.files.Remove(files);
             }
             
+
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
