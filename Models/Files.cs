@@ -10,7 +10,5 @@ namespace File.Models
         [ForeignKey("PersonId")]
         public Person Person { get; set; }
         public string ContentType { get; set; }
-        [NotMapped]
-        public List<IFormFile> PersonFiles { get; set; }
     }
 }

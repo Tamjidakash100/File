@@ -94,6 +94,21 @@ namespace File.Controllers
             
             return RedirectToAction("Index", "Person");
         }
+        public IActionResult Download(int id)
+        {
+            var file = _context.files.FirstOrDefault(f => f.Id==id);
+            string fileName = file.FileName;
+            string folderName = "Files";
+            string webRootPath = _hostingEnvironment.WebRootPath;
+            string filePath = Path.Combine(webRootPath, folderName, fileName);
+
+            if (!System.IO.File.Exists(filePath))
+                return NotFound();
+
+            var fileStream = new FileStream(filePath, FileMode.Open);
+
+            return File(fileStream, "application/octet-stream", fileName);
+        }
         public async Task<IActionResult> Edit(int id)
         {
 

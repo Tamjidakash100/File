@@ -13,10 +13,11 @@ namespace File.Controllers
     public class PersonController : Controller
     {
         private readonly FileDbContext _context;
-
-        public PersonController(FileDbContext context)
+        private readonly IWebHostEnvironment _hostingEnvironment;
+        public PersonController(IWebHostEnvironment hostingEnvironment, FileDbContext context)
         {
             _context = context;
+            _hostingEnvironment = hostingEnvironment;
         }
         public async Task<IActionResult> Index()
         {
@@ -46,14 +47,50 @@ namespace File.Controllers
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Person person)
+        public async Task<IActionResult> Create(List<IFormFile> files, Person person )
         {
+            string name = person.Name;
             if (ModelState.IsValid)
             {
                 _context.Add(person);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
             }
+            var getperson = _context.person.FirstOrDefault(f=> f.Name==name);
+            if(getperson== null)
+            {
+                return NotFound();
+            }
+            string folderName = "Files";
+            string webRootPath = _hostingEnvironment.WebRootPath;
+            string newPath = Path.Combine(webRootPath, folderName);
+            if (!Directory.Exists(newPath))
+            {
+                Directory.CreateDirectory(newPath);
+            }
+            foreach (var file in files)
+            {
+                if (file.Length > 0)
+                {
+                    string fileName = Path.GetFileName(file.FileName);
+                    string fullPath = Path.Combine(newPath, fileName);
+
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+
+                        var fileEntity = new Files
+                        {
+                            FileName = fileName,
+                            PersonId = getperson.Id,
+                            ContentType = file.ContentType
+                        };
+
+                        _context.files.Add(fileEntity);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
             return View(person);
         }
 

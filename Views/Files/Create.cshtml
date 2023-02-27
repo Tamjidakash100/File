@@ -13,9 +13,8 @@
         <form asp-action="Create" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
-                <label asp-for="PersonFiles" class="control-label"></label>
-                <input name="files" type="file" multiple class="form-control" />
-                <span asp-validation-for="FileName" class="text-danger"></span>
+                <label>Files</label>
+                <input name="files" type="file" class="form-control" multiple />
             </div>
             <div class="form-group">
                 <label asp-for="PersonId" class="control-label"></label>
